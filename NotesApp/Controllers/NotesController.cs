@@ -3,9 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Metadata.Internal;
+using NotesApp.Authorization;
 using NotesApp.Data;
 using NotesApp.Models;
 
@@ -15,16 +18,27 @@ namespace NotesApp.Controllers
     public class NotesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IAuthorizationService _authorizationService;
+        private readonly UserManager<IdentityUser> _userManager;
 
-        public NotesController(ApplicationDbContext context)
+        public NotesController(ApplicationDbContext context, IAuthorizationService authorizationService, UserManager<IdentityUser> userManager)
         {
             _context = context;
+            _authorizationService = authorizationService;
+            _userManager = userManager;
         }
 
         // GET: Notes
         public async Task<IActionResult> Index()
         {
-            return View(await _context.Note.ToListAsync());
+            var notes = from n in _context.Note
+                        select n;
+
+            var currentUserId = _userManager.GetUserId(User);
+
+            notes = notes.Where(n => n.OwnerID == currentUserId);
+
+            return View(await notes.ToListAsync());
         }
 
         // GET: Notes/Details/5
@@ -42,6 +56,13 @@ namespace NotesApp.Controllers
                 return NotFound();
             }
 
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Read);
+
+            if (!isAuthorized.Succeeded)
+            {
+                return Forbid();
+            }
+
             return View(note);
         }
 
@@ -56,14 +77,23 @@ namespace NotesApp.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,Title,Description,CreatedDate")] Note note)
+        public async Task<IActionResult> Create([Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
         {
             if (ModelState.IsValid)
             {
+                note.OwnerID = _userManager.GetUserId(User);
+                var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Create);
+
+                if (!isAuthorized.Succeeded)
+                {
+                    return Forbid();
+                }
+
                 _context.Add(note);
                 await _context.SaveChangesAsync();
                 return RedirectToAction(nameof(Index));
             }
+
             return View(note);
         }
 
@@ -80,6 +110,13 @@ namespace NotesApp.Controllers
             {
                 return NotFound();
             }
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
+
+            if (!isAuthorized.Succeeded)
+            {
+                return Forbid();
+            }
+
             return View(note);
         }
 
@@ -88,7 +125,7 @@ namespace NotesApp.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Title,Description,CreatedDate")] Note note)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
         {
             if (id != note.Id)
             {
@@ -99,6 +136,14 @@ namespace NotesApp.Controllers
             {
                 try
                 {
+                    note.OwnerID = _userManager.GetUserId(User);
+                    var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
+
+                    if (!isAuthorized.Succeeded)
+                    {
+                        return Forbid();
+                    }
+
                     _context.Update(note);
                     await _context.SaveChangesAsync();
                 }
@@ -133,6 +178,13 @@ namespace NotesApp.Controllers
                 return NotFound();
             }
 
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
+
+            if (!isAuthorized.Succeeded)
+            {
+                return Forbid();
+            }
+
             return View(note);
         }
 
@@ -142,6 +194,12 @@ namespace NotesApp.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var note = await _context.Note.FindAsync(id);
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
+
+            if (!isAuthorized.Succeeded)
+            {
+                return Forbid();
+            }
             if (note != null)
             {
                 _context.Note.Remove(note);

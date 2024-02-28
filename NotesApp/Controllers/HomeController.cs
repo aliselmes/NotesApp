@@ -5,6 +5,7 @@ using System.Diagnostics;
 
 namespace NotesApp.Controllers
 {
+    [AllowAnonymous]
     public class HomeController : Controller
     {
         private readonly ILogger<HomeController> _logger;

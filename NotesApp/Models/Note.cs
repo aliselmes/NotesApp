@@ -7,6 +7,9 @@ namespace NotesApp.Models
     {
         public int Id { get; set; }
 
+        // user ID from AspNetUser table.
+        public string? OwnerID { get; set; }
+
         public string? Title { get; set; }
 
         public string? Description { get; set; }
