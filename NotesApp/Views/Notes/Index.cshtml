@@ -1,4 +1,4 @@
-﻿@model IEnumerable<NotesApp.Models.Note>
+﻿@model NotesApp.Models.NoteDateViewModel
 
 @{
     ViewData["Title"] = "My Notes";
@@ -10,23 +10,35 @@
 <p>
     <a asp-action="Create">Create New</a>
 </p>
+
+<form asp-controller="Notes" asp-action="Index" method="get">
+    <p>
+        <select asp-for="NoteDate" asp-items="Model.Dates">
+            <option value="">All</option>
+        </select>
+
+        Title: <input type="text" name="SearchString" />
+        <input type="submit" value="Filter" />
+    </p>
+</form>
+
 <table class="table">
     <thead>
         <tr>
             <th>
-                @Html.DisplayNameFor(model => model.Title)
+                @Html.DisplayNameFor(model => model.Notes![0].Title)
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.Description)
+                @Html.DisplayNameFor(model => model.Notes![0].Description)
             </th>
             <th>
-                @Html.DisplayNameFor(model => model.CreatedDate)
+                @Html.DisplayNameFor(model => model.Notes![0].CreatedDate)
             </th>
             <th></th>
         </tr>
     </thead>
     <tbody>
-@foreach (var item in Model) {
+@foreach (var item in Model.Notes!) {
         <tr>
             <td>
                 @Html.DisplayFor(modelItem => item.Title)

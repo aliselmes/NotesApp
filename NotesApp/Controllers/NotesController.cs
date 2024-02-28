@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Humanizer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -29,8 +30,13 @@ namespace NotesApp.Controllers
         }
 
         // GET: Notes
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string noteDate, string searchString)
         {
+            if (_context.Note == null)
+            {
+                return Problem("Entity set 'ApplicationDbContext.Note'  is null.");
+            }
+
             var notes = from n in _context.Note
                         select n;
 
@@ -38,7 +44,30 @@ namespace NotesApp.Controllers
 
             notes = notes.Where(n => n.OwnerID == currentUserId);
 
-            return View(await notes.ToListAsync());
+            IQueryable<string> dateQuery = from n in notes
+                                              orderby n.CreatedDate
+                                              select n.CreatedDate.Value.Date.ToShortDateString();
+            
+
+            if (!String.IsNullOrEmpty(searchString))
+            {
+                notes = notes.Where(s => s.Title!.Contains(searchString) || s.Description!.Contains(searchString));
+            }
+
+
+            if (!string.IsNullOrEmpty(noteDate))
+            {
+                var parsedDate = DateTime.Parse(noteDate);
+                notes = notes.Where(x => x.CreatedDate.Value.Date == parsedDate.Date);
+            }
+
+            var noteDateVM = new NoteDateViewModel
+            {
+                Dates = new SelectList(await dateQuery.Distinct().ToListAsync()),
+                Notes = await notes.ToListAsync()
+            };
+
+            return View(noteDateVM);
         }
 
         // GET: Notes/Details/5
