@@ -13,9 +13,14 @@
 
 <form asp-controller="Notes" asp-action="Index" method="get">
     <p>
-        <select asp-for="NoteDate" asp-items="Model.Dates">
-            <option value="">All</option>
-        </select>
+        <div>
+            <label>Start Date</label>
+            <input type="date" asp-for="StartDate"/>
+        </div>
+        <div>
+            <label>End Date</label>
+            <input type="date" asp-for="EndDate"/>
+        </div>
 
         Title: <input type="text" name="SearchString" />
         <input type="submit" value="Filter" />

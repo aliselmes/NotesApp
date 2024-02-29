@@ -30,7 +30,8 @@ namespace NotesApp.Controllers
         }
 
         // GET: Notes
-        public async Task<IActionResult> Index(string noteDate, string searchString)
+        public async Task<IActionResult> Index(string searchString, DateTime? startDate,
+           DateTime? endDate)
         {
             if (_context.Note == null)
             {
@@ -45,9 +46,9 @@ namespace NotesApp.Controllers
             notes = notes.Where(n => n.OwnerID == currentUserId);
 
             IQueryable<string> dateQuery = from n in notes
-                                              orderby n.CreatedDate
-                                              select n.CreatedDate.Value.Date.ToShortDateString();
-            
+                                           orderby n.CreatedDate
+                                           select n.CreatedDate.Value.Date.ToShortDateString();
+
 
             if (!String.IsNullOrEmpty(searchString))
             {
@@ -55,192 +56,192 @@ namespace NotesApp.Controllers
             }
 
 
-            if (!string.IsNullOrEmpty(noteDate))
+            if (startDate != null && endDate != null)
             {
-                var parsedDate = DateTime.Parse(noteDate);
-                notes = notes.Where(x => x.CreatedDate.Value.Date == parsedDate.Date);
+                notes = notes.Where(x => x.CreatedDate.Value.Date >= startDate.Value.Date && x.CreatedDate.Value.Date <= endDate.Value.Date);
             }
 
             var noteDateVM = new NoteDateViewModel
-            {
-                Dates = new SelectList(await dateQuery.Distinct().ToListAsync()),
+            {           
+                StartDate = DateTime.Now.AddDays(-30),
+                EndDate = DateTime.Now,
                 Notes = await notes.ToListAsync()
             };
 
             return View(noteDateVM);
+    }
+
+    // GET: Notes/Details/5
+    public async Task<IActionResult> Details(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
         }
 
-        // GET: Notes/Details/5
-        public async Task<IActionResult> Details(int? id)
+        var note = await _context.Note
+            .FirstOrDefaultAsync(m => m.Id == id);
+        if (note == null)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            return NotFound();
+        }
 
-            var note = await _context.Note
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (note == null)
-            {
-                return NotFound();
-            }
+        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Read);
 
-            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Read);
+        if (!isAuthorized.Succeeded)
+        {
+            return Forbid();
+        }
+
+        return View(note);
+    }
+
+    // GET: Notes/Create
+    public IActionResult Create()
+    {
+        return View();
+    }
+
+    // POST: Notes/Create
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create([Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
+    {
+        if (ModelState.IsValid)
+        {
+            note.OwnerID = _userManager.GetUserId(User);
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Create);
 
             if (!isAuthorized.Succeeded)
             {
                 return Forbid();
             }
 
-            return View(note);
+            _context.Add(note);
+            await _context.SaveChangesAsync();
+            return RedirectToAction(nameof(Index));
         }
 
-        // GET: Notes/Create
-        public IActionResult Create()
+        return View(note);
+    }
+
+    // GET: Notes/Edit/5
+    public async Task<IActionResult> Edit(int? id)
+    {
+        if (id == null)
         {
-            return View();
+            return NotFound();
         }
 
-        // POST: Notes/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
+        var note = await _context.Note.FindAsync(id);
+        if (note == null)
         {
-            if (ModelState.IsValid)
+            return NotFound();
+        }
+        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
+
+        if (!isAuthorized.Succeeded)
+        {
+            return Forbid();
+        }
+
+        return View(note);
+    }
+
+    // POST: Notes/Edit/5
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Edit(int id, [Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
+    {
+        if (id != note.Id)
+        {
+            return NotFound();
+        }
+
+        if (ModelState.IsValid)
+        {
+            try
             {
                 note.OwnerID = _userManager.GetUserId(User);
-                var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Create);
+                var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
 
                 if (!isAuthorized.Succeeded)
                 {
                     return Forbid();
                 }
 
-                _context.Add(note);
+                _context.Update(note);
                 await _context.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
             }
-
-            return View(note);
-        }
-
-        // GET: Notes/Edit/5
-        public async Task<IActionResult> Edit(int? id)
-        {
-            if (id == null)
+            catch (DbUpdateConcurrencyException)
             {
-                return NotFound();
-            }
-
-            var note = await _context.Note.FindAsync(id);
-            if (note == null)
-            {
-                return NotFound();
-            }
-            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
-
-            if (!isAuthorized.Succeeded)
-            {
-                return Forbid();
-            }
-
-            return View(note);
-        }
-
-        // POST: Notes/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-        [HttpPost]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
-        {
-            if (id != note.Id)
-            {
-                return NotFound();
-            }
-
-            if (ModelState.IsValid)
-            {
-                try
+                if (!NoteExists(note.Id))
                 {
-                    note.OwnerID = _userManager.GetUserId(User);
-                    var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
-
-                    if (!isAuthorized.Succeeded)
-                    {
-                        return Forbid();
-                    }
-
-                    _context.Update(note);
-                    await _context.SaveChangesAsync();
+                    return NotFound();
                 }
-                catch (DbUpdateConcurrencyException)
+                else
                 {
-                    if (!NoteExists(note.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
+                    throw;
                 }
-                return RedirectToAction(nameof(Index));
             }
-            return View(note);
-        }
-
-        // GET: Notes/Delete/5
-        public async Task<IActionResult> Delete(int? id)
-        {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var note = await _context.Note
-                .FirstOrDefaultAsync(m => m.Id == id);
-            if (note == null)
-            {
-                return NotFound();
-            }
-
-            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
-
-            if (!isAuthorized.Succeeded)
-            {
-                return Forbid();
-            }
-
-            return View(note);
-        }
-
-        // POST: Notes/Delete/5
-        [HttpPost, ActionName("Delete")]
-        [ValidateAntiForgeryToken]
-        public async Task<IActionResult> DeleteConfirmed(int id)
-        {
-            var note = await _context.Note.FindAsync(id);
-            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
-
-            if (!isAuthorized.Succeeded)
-            {
-                return Forbid();
-            }
-            if (note != null)
-            {
-                _context.Note.Remove(note);
-            }
-
-            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
-
-        private bool NoteExists(int id)
-        {
-            return _context.Note.Any(e => e.Id == id);
-        }
+        return View(note);
     }
+
+    // GET: Notes/Delete/5
+    public async Task<IActionResult> Delete(int? id)
+    {
+        if (id == null)
+        {
+            return NotFound();
+        }
+
+        var note = await _context.Note
+            .FirstOrDefaultAsync(m => m.Id == id);
+        if (note == null)
+        {
+            return NotFound();
+        }
+
+        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
+
+        if (!isAuthorized.Succeeded)
+        {
+            return Forbid();
+        }
+
+        return View(note);
+    }
+
+    // POST: Notes/Delete/5
+    [HttpPost, ActionName("Delete")]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> DeleteConfirmed(int id)
+    {
+        var note = await _context.Note.FindAsync(id);
+        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
+
+        if (!isAuthorized.Succeeded)
+        {
+            return Forbid();
+        }
+        if (note != null)
+        {
+            _context.Note.Remove(note);
+        }
+
+        await _context.SaveChangesAsync();
+        return RedirectToAction(nameof(Index));
+    }
+
+    private bool NoteExists(int id)
+    {
+        return _context.Note.Any(e => e.Id == id);
+    }
+}
 }
