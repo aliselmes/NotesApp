@@ -29,6 +29,14 @@
         <dd class = "col-sm-10">
             @Html.DisplayFor(model => model.CreatedDate)
         </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.ImageFileName)
+        </dt>
+        <dd class="col-sm-10">
+            <img src="~/images/@Model.ImageFileName"
+                 
+                 asp-append-version="true" />
+        </dd>
     </dl>
 </div>
 <div>

@@ -20,5 +20,8 @@ namespace NotesApp.Models
         [Display(Name = "Date Created")]
         [DataType(DataType.DateTime)]
         public DateTime? CreatedDate { get; set; } = DateTime.Now;
+
+        [Display(Name = "Image")]
+        public string? ImageFileName{ get; set; }
     }
 }

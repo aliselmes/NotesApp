@@ -13,17 +13,17 @@
 
 <form asp-controller="Notes" asp-action="Index" method="get">
     <p>
-        <div>
-            <label>Start Date</label>
-            <input type="date" asp-for="StartDate"/>
-        </div>
-        <div>
-            <label>End Date</label>
-            <input type="date" asp-for="EndDate"/>
-        </div>
+        Search: <input type="text" name="SearchString" />
 
-        Title: <input type="text" name="SearchString" />
-        <input type="submit" value="Filter" />
+        <div>
+            <label>Start Date:</label>
+            <input type="date" asp-for="StartDate" />
+        </div>
+        <div>
+            <label>End Date:</label>
+            <input type="date" asp-for="EndDate" />
+        </div>
+        <input type="submit" value="Search" />
     </p>
 </form>
 
