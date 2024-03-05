@@ -8,11 +8,13 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using NotesApp.Authorization;
 using NotesApp.Data;
 using NotesApp.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace NotesApp.Controllers
 {
@@ -84,6 +86,17 @@ namespace NotesApp.Controllers
 
             var note = await _context.Note
                 .FirstOrDefaultAsync(m => m.Id == id);
+
+            var noteVM = new NoteViewModel()
+            {
+                Id = note.Id,
+                OwnerID = note.OwnerID,
+                Title = note.Title,
+                Description = note.Description,
+                CreatedDate= note.CreatedDate,
+                ExistingImage   = note.ImageFileName
+            };
+
             if (note == null)
             {
                 return NotFound();
@@ -96,7 +109,7 @@ namespace NotesApp.Controllers
                 return Forbid();
             }
 
-            return View(note);
+            return View(noteVM);
         }
 
         // GET: Notes/Create
@@ -173,6 +186,18 @@ namespace NotesApp.Controllers
             }
 
             var note = await _context.Note.FindAsync(id);
+
+            var noteVM = new NoteViewModel()
+            {
+                Id = note.Id,
+                OwnerID = note.OwnerID,
+                Title = note.Title,
+                Description = note.Description,
+                ExistingImage = note.ImageFileName,
+                CreatedDate = note.CreatedDate,
+                
+            };
+
             if (note == null)
             {
                 return NotFound();
@@ -184,7 +209,7 @@ namespace NotesApp.Controllers
                 return Forbid();
             }
 
-            return View(note);
+            return View(noteVM);
         }
 
         // POST: Notes/Edit/5
@@ -192,9 +217,9 @@ namespace NotesApp.Controllers
         // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
+        public async Task<IActionResult> Edit(int id, NoteViewModel noteVM)
         {
-            if (id != note.Id)
+            if (id != noteVM.Id)
             {
                 return NotFound();
             }
@@ -203,20 +228,37 @@ namespace NotesApp.Controllers
             {
                 try
                 {
-                    note.OwnerID = _userManager.GetUserId(User);
-                    var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
-
+                    noteVM.OwnerID = _userManager.GetUserId(User);
+                    var isAuthorized = await _authorizationService.AuthorizeAsync(User, noteVM, NoteOperations.Update);
                     if (!isAuthorized.Succeeded)
                     {
                         return Forbid();
                     }
+
+                    var note = await _context.Note.FindAsync(noteVM.Id);
+                    note.Title = noteVM.Title;
+                    note.Description = noteVM.Description;
+                    note.CreatedDate = noteVM.CreatedDate;
+                    note.OwnerID = noteVM.OwnerID;  
+
+                    if (noteVM.NoteImage != null)
+                    {
+                        if (noteVM.ExistingImage != null)
+                        {
+                            string filePath = Path.Combine(_webHostEnvironment.WebRootPath, "Images", noteVM.ExistingImage);
+                            System.IO.File.Delete(filePath);
+                        }
+
+                        note.ImageFileName = UploadedFile(noteVM);
+                    }
+  
 
                     _context.Update(note);
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!NoteExists(note.Id))
+                    if (!NoteExists(noteVM.Id))
                     {
                         return NotFound();
                     }
@@ -227,7 +269,7 @@ namespace NotesApp.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            return View(note);
+            return View();
         }
 
         // GET: Notes/Delete/5

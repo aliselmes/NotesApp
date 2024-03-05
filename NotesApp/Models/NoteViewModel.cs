@@ -6,5 +6,8 @@ namespace NotesApp.Models
     {
         [Display(Name = "Image")]
         public IFormFile? NoteImage { get; set; }
+
+        [Display(Name = "Image")]
+        public string? ExistingImage { get; set; }
     }
 }
