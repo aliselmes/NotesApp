@@ -282,6 +282,17 @@ namespace NotesApp.Controllers
 
             var note = await _context.Note
                 .FirstOrDefaultAsync(m => m.Id == id);
+
+            var noteVM = new NoteViewModel()
+            {
+                Id = note.Id,
+                OwnerID = note.OwnerID,
+                Title = note.Title,
+                Description = note.Description,
+                CreatedDate = note.CreatedDate,
+                ExistingImage = note.ImageFileName
+            };
+
             if (note == null)
             {
                 return NotFound();
@@ -294,7 +305,7 @@ namespace NotesApp.Controllers
                 return Forbid();
             }
 
-            return View(note);
+            return View(noteVM);
         }
 
         // POST: Notes/Delete/5
@@ -303,6 +314,7 @@ namespace NotesApp.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var note = await _context.Note.FindAsync(id);
+            var CurrentImage = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot\\images", note.ImageFileName);
             var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
 
             if (!isAuthorized.Succeeded)
@@ -312,6 +324,13 @@ namespace NotesApp.Controllers
             if (note != null)
             {
                 _context.Note.Remove(note);
+            }
+            if (await _context.SaveChangesAsync() > 0)
+            {
+                if (System.IO.File.Exists(CurrentImage))
+                {
+                    System.IO.File.Delete(CurrentImage);
+                }
             }
 
             await _context.SaveChangesAsync();

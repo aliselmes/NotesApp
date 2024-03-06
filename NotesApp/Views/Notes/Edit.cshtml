@@ -31,14 +31,18 @@
                 </div>
                 <span asp-validation-for="NoteImage" class="text-danger"></span>
             </div>
-            <img src="~/images/@Model.ExistingImage"
-                 asp-append-version="true" />
+           @if (!string.IsNullOrEmpty(Model.ExistingImage))
+            {
+                <img src="~/images/@Model.ExistingImage"
+                     asp-append-version="true" />
+            }
+            
             @* <div class="form-group">
                 <label asp-for="CreatedDate" class="control-label"></label>
                 <input asp-for="CreatedDate" class="form-control" />
                 <span asp-validation-for="CreatedDate" class="text-danger"></span>
             </div> *@
-            <div class="form-group">
+            <div class="form-group mt-3">
                 <input type="submit" value="Save" class="btn btn-primary" />
             </div>
         </form>
