@@ -94,7 +94,8 @@ namespace NotesApp.Controllers
                 Title = note.Title,
                 Description = note.Description,
                 CreatedDate= note.CreatedDate,
-                ExistingImage   = note.ImageFileName
+                ExistingImage   = note.ImageFileName,
+                LastEdited = note.LastEdited
             };
 
             if (note == null)
@@ -195,6 +196,7 @@ namespace NotesApp.Controllers
                 Description = note.Description,
                 ExistingImage = note.ImageFileName,
                 CreatedDate = note.CreatedDate,
+                LastEdited  = note.LastEdited,
                 
             };
 
@@ -238,7 +240,8 @@ namespace NotesApp.Controllers
                     var note = await _context.Note.FindAsync(noteVM.Id);
                     note.Title = noteVM.Title;
                     note.Description = noteVM.Description;
-                    note.CreatedDate = noteVM.CreatedDate;
+                    note.LastEdited = DateTime.Now;
+                    //note.CreatedDate = noteVM.CreatedDate;
                     note.OwnerID = noteVM.OwnerID;  
 
                     if (noteVM.NoteImage != null)
@@ -290,7 +293,8 @@ namespace NotesApp.Controllers
                 Title = note.Title,
                 Description = note.Description,
                 CreatedDate = note.CreatedDate,
-                ExistingImage = note.ImageFileName
+                ExistingImage = note.ImageFileName,
+                LastEdited = note.LastEdited
             };
 
             if (note == null)
@@ -314,23 +318,29 @@ namespace NotesApp.Controllers
         public async Task<IActionResult> DeleteConfirmed(int id)
         {
             var note = await _context.Note.FindAsync(id);
-            var CurrentImage = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot\\images", note.ImageFileName);
+
+            if (!string.IsNullOrEmpty(note.ImageFileName))
+            {
+                var CurrentImage = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot\\images", note.ImageFileName);
+                if (await _context.SaveChangesAsync() > 0)
+                {
+                    if (System.IO.File.Exists(CurrentImage))
+                    {
+                        System.IO.File.Delete(CurrentImage);
+                    }
+                }
+            }
+            
             var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
 
             if (!isAuthorized.Succeeded)
             {
                 return Forbid();
             }
+
             if (note != null)
             {
                 _context.Note.Remove(note);
-            }
-            if (await _context.SaveChangesAsync() > 0)
-            {
-                if (System.IO.File.Exists(CurrentImage))
-                {
-                    System.IO.File.Delete(CurrentImage);
-                }
             }
 
             await _context.SaveChangesAsync();

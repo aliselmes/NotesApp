@@ -8,6 +8,7 @@
 <h1>Edit</h1>
 
 <h4>Note</h4>
+<p><strong>@Html.DisplayNameFor(model => model.LastEdited):</strong>  @(Model.LastEdited != null ? Html.DisplayFor(model => model.LastEdited) : Html.DisplayFor(model => model.CreatedDate))</p>
 <hr />
 <div class="row">
     <div class="col-md-4">
