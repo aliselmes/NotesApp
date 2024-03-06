@@ -4,14 +4,17 @@ using System.Linq;
 using System.Threading.Tasks;
 using Humanizer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.CodeAnalysis;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using NotesApp.Authorization;
 using NotesApp.Data;
 using NotesApp.Models;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
 namespace NotesApp.Controllers
 {
@@ -21,12 +24,14 @@ namespace NotesApp.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IAuthorizationService _authorizationService;
         private readonly UserManager<IdentityUser> _userManager;
+        private readonly IWebHostEnvironment _webHostEnvironment;
 
-        public NotesController(ApplicationDbContext context, IAuthorizationService authorizationService, UserManager<IdentityUser> userManager)
+        public NotesController(ApplicationDbContext context, IAuthorizationService authorizationService, UserManager<IdentityUser> userManager, IWebHostEnvironment webHostEnvironment)
         {
             _context = context;
             _authorizationService = authorizationService;
             _userManager = userManager;
+            _webHostEnvironment = webHostEnvironment;
         }
 
         // GET: Notes
@@ -62,186 +67,296 @@ namespace NotesApp.Controllers
             }
 
             var noteDateVM = new NoteDateViewModel
-            {           
+            {
                 StartDate = DateTime.Now.AddDays(-30),
                 EndDate = DateTime.Now,
                 Notes = await notes.ToListAsync()
             };
 
             return View(noteDateVM);
-    }
-
-    // GET: Notes/Details/5
-    public async Task<IActionResult> Details(int? id)
-    {
-        if (id == null)
-        {
-            return NotFound();
         }
 
-        var note = await _context.Note
-            .FirstOrDefaultAsync(m => m.Id == id);
-        if (note == null)
+        // GET: Notes/Details/5
+        public async Task<IActionResult> Details(int? id)
         {
-            return NotFound();
-        }
+            if (id == null)
+            {
+                return NotFound();
+            }
 
-        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Read);
+            var note = await _context.Note
+                .FirstOrDefaultAsync(m => m.Id == id);
 
-        if (!isAuthorized.Succeeded)
-        {
-            return Forbid();
-        }
+            var noteVM = new NoteViewModel()
+            {
+                Id = note.Id,
+                OwnerID = note.OwnerID,
+                Title = note.Title,
+                Description = note.Description,
+                CreatedDate= note.CreatedDate,
+                ExistingImage   = note.ImageFileName
+            };
 
-        return View(note);
-    }
+            if (note == null)
+            {
+                return NotFound();
+            }
 
-    // GET: Notes/Create
-    public IActionResult Create()
-    {
-        return View();
-    }
-
-    // POST: Notes/Create
-    // To protect from overposting attacks, enable the specific properties you want to bind to.
-    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create([Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
-    {
-        if (ModelState.IsValid)
-        {
-            note.OwnerID = _userManager.GetUserId(User);
-            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Create);
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Read);
 
             if (!isAuthorized.Succeeded)
             {
                 return Forbid();
             }
 
-            _context.Add(note);
-            await _context.SaveChangesAsync();
-            return RedirectToAction(nameof(Index));
+            return View(noteVM);
         }
 
-        return View(note);
-    }
-
-    // GET: Notes/Edit/5
-    public async Task<IActionResult> Edit(int? id)
-    {
-        if (id == null)
+        // GET: Notes/Create
+        public IActionResult Create()
         {
-            return NotFound();
+            return View();
         }
 
-        var note = await _context.Note.FindAsync(id);
-        if (note == null)
-        {
-            return NotFound();
-        }
-        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
+        // POST: Notes/Create
+        // To protect from overposting attacks, enable the specific properties you want to bind to.
+        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        //[HttpPost]
+        //[ValidateAntiForgeryToken]
+        //public async Task<IActionResult> Create([Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
+        //{
+        //    if (ModelState.IsValid)
+        //    {
+        //        note.OwnerID = _userManager.GetUserId(User);
+        //        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Create);
 
-        if (!isAuthorized.Succeeded)
-        {
-            return Forbid();
-        }
+        //        if (!isAuthorized.Succeeded)
+        //        {
+        //            return Forbid();
+        //        }
 
-        return View(note);
-    }
+        //        _context.Add(note);
+        //        await _context.SaveChangesAsync();
+        //        return RedirectToAction(nameof(Index));
+        //    }
 
-    // POST: Notes/Edit/5
-    // To protect from overposting attacks, enable the specific properties you want to bind to.
-    // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Edit(int id, [Bind("Id,OwnerId,Title,Description,CreatedDate")] Note note)
-    {
-        if (id != note.Id)
-        {
-            return NotFound();
-        }
+        //    return View(note);
+        //}
 
-        if (ModelState.IsValid)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Create(NoteViewModel noteVM)
         {
-            try
+            if (ModelState.IsValid)
             {
-                note.OwnerID = _userManager.GetUserId(User);
-                var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
+                noteVM.OwnerID = _userManager.GetUserId(User);
+                var isAuthorized = await _authorizationService.AuthorizeAsync(User, noteVM, NoteOperations.Create);
 
                 if (!isAuthorized.Succeeded)
                 {
                     return Forbid();
                 }
 
-                _context.Update(note);
+                string uniqueFileName = UploadedFile(noteVM);
+
+                Note note = new Note
+                {
+                    Id = noteVM.Id,
+                    OwnerID = noteVM.OwnerID,
+                    Title = noteVM.Title,
+                    Description = noteVM.Description,
+                    CreatedDate = DateTime.Now,
+                    ImageFileName = uniqueFileName
+                };
+
+                _context.Add(note);
                 await _context.SaveChangesAsync();
+                return RedirectToAction(nameof(Index));
             }
-            catch (DbUpdateConcurrencyException)
+
+            return View();
+        }
+
+        // GET: Notes/Edit/5
+        public async Task<IActionResult> Edit(int? id)
+        {
+            if (id == null)
             {
-                if (!NoteExists(note.Id))
+                return NotFound();
+            }
+
+            var note = await _context.Note.FindAsync(id);
+
+            var noteVM = new NoteViewModel()
+            {
+                Id = note.Id,
+                OwnerID = note.OwnerID,
+                Title = note.Title,
+                Description = note.Description,
+                ExistingImage = note.ImageFileName,
+                CreatedDate = note.CreatedDate,
+                
+            };
+
+            if (note == null)
+            {
+                return NotFound();
+            }
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Update);
+
+            if (!isAuthorized.Succeeded)
+            {
+                return Forbid();
+            }
+
+            return View(noteVM);
+        }
+
+        // POST: Notes/Edit/5
+        // To protect from overposting attacks, enable the specific properties you want to bind to.
+        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, NoteViewModel noteVM)
+        {
+            if (id != noteVM.Id)
+            {
+                return NotFound();
+            }
+
+            if (ModelState.IsValid)
+            {
+                try
                 {
-                    return NotFound();
+                    noteVM.OwnerID = _userManager.GetUserId(User);
+                    var isAuthorized = await _authorizationService.AuthorizeAsync(User, noteVM, NoteOperations.Update);
+                    if (!isAuthorized.Succeeded)
+                    {
+                        return Forbid();
+                    }
+
+                    var note = await _context.Note.FindAsync(noteVM.Id);
+                    note.Title = noteVM.Title;
+                    note.Description = noteVM.Description;
+                    note.CreatedDate = noteVM.CreatedDate;
+                    note.OwnerID = noteVM.OwnerID;  
+
+                    if (noteVM.NoteImage != null)
+                    {
+                        if (noteVM.ExistingImage != null)
+                        {
+                            string filePath = Path.Combine(_webHostEnvironment.WebRootPath, "Images", noteVM.ExistingImage);
+                            System.IO.File.Delete(filePath);
+                        }
+
+                        note.ImageFileName = UploadedFile(noteVM);
+                    }
+  
+
+                    _context.Update(note);
+                    await _context.SaveChangesAsync();
                 }
-                else
+                catch (DbUpdateConcurrencyException)
                 {
-                    throw;
+                    if (!NoteExists(noteVM.Id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                return RedirectToAction(nameof(Index));
+            }
+            return View();
+        }
+
+        // GET: Notes/Delete/5
+        public async Task<IActionResult> Delete(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var note = await _context.Note
+                .FirstOrDefaultAsync(m => m.Id == id);
+
+            var noteVM = new NoteViewModel()
+            {
+                Id = note.Id,
+                OwnerID = note.OwnerID,
+                Title = note.Title,
+                Description = note.Description,
+                CreatedDate = note.CreatedDate,
+                ExistingImage = note.ImageFileName
+            };
+
+            if (note == null)
+            {
+                return NotFound();
+            }
+
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
+
+            if (!isAuthorized.Succeeded)
+            {
+                return Forbid();
+            }
+
+            return View(noteVM);
+        }
+
+        // POST: Notes/Delete/5
+        [HttpPost, ActionName("Delete")]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> DeleteConfirmed(int id)
+        {
+            var note = await _context.Note.FindAsync(id);
+            var CurrentImage = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot\\images", note.ImageFileName);
+            var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
+
+            if (!isAuthorized.Succeeded)
+            {
+                return Forbid();
+            }
+            if (note != null)
+            {
+                _context.Note.Remove(note);
+            }
+            if (await _context.SaveChangesAsync() > 0)
+            {
+                if (System.IO.File.Exists(CurrentImage))
+                {
+                    System.IO.File.Delete(CurrentImage);
                 }
             }
+
+            await _context.SaveChangesAsync();
             return RedirectToAction(nameof(Index));
         }
-        return View(note);
+
+        private bool NoteExists(int id)
+        {
+            return _context.Note.Any(e => e.Id == id);
+        }
+
+        private string UploadedFile(NoteViewModel model)
+        {
+            string? uniqueFileName = null;
+
+            if (model.NoteImage != null)
+            {
+                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
+                uniqueFileName = Guid.NewGuid().ToString() + "_" + model.NoteImage.FileName;
+                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+                using (var fileStream = new FileStream(filePath, FileMode.Create))
+                {
+                    model.NoteImage.CopyTo(fileStream);
+                }
+            }
+            return uniqueFileName;
+        }
     }
-
-    // GET: Notes/Delete/5
-    public async Task<IActionResult> Delete(int? id)
-    {
-        if (id == null)
-        {
-            return NotFound();
-        }
-
-        var note = await _context.Note
-            .FirstOrDefaultAsync(m => m.Id == id);
-        if (note == null)
-        {
-            return NotFound();
-        }
-
-        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
-
-        if (!isAuthorized.Succeeded)
-        {
-            return Forbid();
-        }
-
-        return View(note);
-    }
-
-    // POST: Notes/Delete/5
-    [HttpPost, ActionName("Delete")]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> DeleteConfirmed(int id)
-    {
-        var note = await _context.Note.FindAsync(id);
-        var isAuthorized = await _authorizationService.AuthorizeAsync(User, note, NoteOperations.Delete);
-
-        if (!isAuthorized.Succeeded)
-        {
-            return Forbid();
-        }
-        if (note != null)
-        {
-            _context.Note.Remove(note);
-        }
-
-        await _context.SaveChangesAsync();
-        return RedirectToAction(nameof(Index));
-    }
-
-    private bool NoteExists(int id)
-    {
-        return _context.Note.Any(e => e.Id == id);
-    }
-}
 }

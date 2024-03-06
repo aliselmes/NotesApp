@@ -1,4 +1,4 @@
-﻿@model NotesApp.Models.Note
+﻿@model NotesApp.Models.NoteViewModel
 
 @{
     ViewData["Title"] = "Details";
@@ -29,6 +29,17 @@
         <dd class = "col-sm-10">
             @Html.DisplayFor(model => model.CreatedDate)
         </dd>
+        @if (!string.IsNullOrEmpty(Model.ExistingImage))
+        {
+            <dt class="col-sm-2">
+                @Html.DisplayNameFor(model => model.ExistingImage)
+            </dt>
+            <dd class="col-sm-10">
+                <img src="~/images/@Model.ExistingImage"
+                     asp-append-version="true" />
+            </dd>
+        }
+        
     </dl>
 </div>
 <div>
