@@ -363,4 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 # Custom
-wwroot/images/
+wwwroot/images/
