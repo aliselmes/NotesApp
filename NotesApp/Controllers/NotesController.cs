@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Internal;
 using NotesApp.Authorization;
 using NotesApp.Data;
+using NotesApp.Helpers;
 using NotesApp.Models;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
 
@@ -25,13 +26,15 @@ namespace NotesApp.Controllers
         private readonly IAuthorizationService _authorizationService;
         private readonly UserManager<IdentityUser> _userManager;
         private readonly IWebHostEnvironment _webHostEnvironment;
+        private readonly IFileUploadHelper _fileUploadHelper;
 
-        public NotesController(ApplicationDbContext context, IAuthorizationService authorizationService, UserManager<IdentityUser> userManager, IWebHostEnvironment webHostEnvironment)
+        public NotesController(ApplicationDbContext context, IAuthorizationService authorizationService, UserManager<IdentityUser> userManager, IWebHostEnvironment webHostEnvironment, IFileUploadHelper fileUploadHelper)
         {
             _context = context;
             _authorizationService = authorizationService;
             _userManager = userManager;
             _webHostEnvironment = webHostEnvironment;
+            _fileUploadHelper = fileUploadHelper;
         }
 
         // GET: Notes
@@ -158,7 +161,7 @@ namespace NotesApp.Controllers
                     return Forbid();
                 }
 
-                string uniqueFileName = UploadedFile(noteVM);
+                string uniqueFileName = _fileUploadHelper.UploadedFile(noteVM);
 
                 Note note = new Note
                 {
@@ -252,7 +255,7 @@ namespace NotesApp.Controllers
                             System.IO.File.Delete(filePath);
                         }
 
-                        note.ImageFileName = UploadedFile(noteVM);
+                        note.ImageFileName = _fileUploadHelper.UploadedFile(noteVM);
                     }
   
 
@@ -352,21 +355,21 @@ namespace NotesApp.Controllers
             return _context.Note.Any(e => e.Id == id);
         }
 
-        private string UploadedFile(NoteViewModel model)
-        {
-            string? uniqueFileName = null;
+        //private string UploadedFile(NoteViewModel model)
+        //{
+        //    string? uniqueFileName = null;
 
-            if (model.NoteImage != null)
-            {
-                string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
-                uniqueFileName = Guid.NewGuid().ToString() + "_" + model.NoteImage.FileName;
-                string filePath = Path.Combine(uploadsFolder, uniqueFileName);
-                using (var fileStream = new FileStream(filePath, FileMode.Create))
-                {
-                    model.NoteImage.CopyTo(fileStream);
-                }
-            }
-            return uniqueFileName;
-        }
+        //    if (model.NoteImage != null)
+        //    {
+        //        string uploadsFolder = Path.Combine(_webHostEnvironment.WebRootPath, "images");
+        //        uniqueFileName = Guid.NewGuid().ToString() + "_" + model.NoteImage.FileName;
+        //        string filePath = Path.Combine(uploadsFolder, uniqueFileName);
+        //        using (var fileStream = new FileStream(filePath, FileMode.Create))
+        //        {
+        //            model.NoteImage.CopyTo(fileStream);
+        //        }
+        //    }
+        //    return uniqueFileName;
+        //}
     }
 }
