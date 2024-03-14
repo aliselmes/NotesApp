@@ -7,27 +7,62 @@
 
 <h1>My Notes</h1>
 
-<p>
-    <a asp-action="Create">Create New</a>
+<p class="mt-3 mb-3">
+    <a asp-action="Create" class="btn btn-primary">Create New</a>
 </p>
 
 <form asp-controller="Notes" asp-action="Index" method="get">
     <p>
-        Search: <input type="text" name="SearchString" />
+        <div class="row mb-3">
+            <div class="col-md-3 mb-2">
+                Search: <input type="text" name="SearchString" />
+            </div>
 
-        <div>
-            <label>Start Date:</label>
-            <input type="date" asp-for="StartDate" />
-        </div>
-        <div>
-            <label>End Date:</label>
-            <input type="date" asp-for="EndDate" />
+            <div class="col-md-6">
+                <div class="row">
+                    <div class="col-md-6 mb-2"
+                        <label>Start Date:</label>
+                        <input type="date" asp-for="StartDate" />
+                    </div>
+                    <div class="col-md-6 mb-2">
+                        <label>End Date:</label>
+                        <input type="date" asp-for="EndDate" />
+                    </div>
+                </div>
+                
+            </div>
         </div>
         <input type="submit" value="Search" />
     </p>
 </form>
 
-<table class="table">
+<div class="row">
+
+    @foreach (var item in Model.Notes!)
+    {
+        <div class="card m-3" style="width: 18rem;">
+            <a asp-action="Details" asp-route-id="@item.Id">
+                @if (!string.IsNullOrEmpty(item.ImageFileName))
+                {
+                    <img class="card-img-top" src="~/images/@item.ImageFileName" alt="Card image cap">
+                }
+
+                <div class="card-body">
+                    <h5 class="card-title">@item.Title</h5>
+                    <p class="card-text">@item.Description</p>
+                    <p class="card-text"><strong>Created:</strong> @item.CreatedDate.Value.Date.ToString("MMMM dd, yyyy")</p>
+                    @if (item.LastEdited != null)
+                    {
+                        <p class="card-text"><strong>Last Edited:</strong> @item.LastEdited.Value.Date.ToString("MMMM dd, yyyy")</p>
+                    }
+                </div>
+            </a>
+        </div>
+    }
+
+</div>
+
+@* <table class="table">
     <thead>
         <tr>
             <th>
@@ -69,4 +104,4 @@
             </tr>
         }
     </tbody>
-</table>
+</table> *@
